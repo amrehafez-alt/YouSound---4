@@ -1,0 +1,45 @@
+name: Build YouSound IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      - name: Build the app (no signing needed — AltStore signs it later)
+        run: |
+          xcodebuild \
+            -project YouSound.xcodeproj \
+            -scheme YouSound \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      - name: Package into an unsigned .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/YouSound.app Payload/
+          zip -r YouSound.ipa Payload
+          rm -rf Payload
+
+      - name: Upload the .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouSound-ipa
+          path: YouSound.ipa
